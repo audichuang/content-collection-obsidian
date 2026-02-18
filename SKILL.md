@@ -82,6 +82,11 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 > **注意**：投影片區域通常有兩個箭頭按鈕（上一張/下一張），點擊計數器**右側**那個按鈕才是前進到下一張。
 
+**截圖檔案規則**：
+- browser tool 截圖會暫存於 `~/.openclaw/media/browser/`（系統自動管理，無需手動處理）
+- 只需視覺讀取截圖內容，**不要將截圖複製或移動到 `~/skills/` 下**
+- 若需要永久保存原始圖片（例如用於 Obsidian 附件），請存到 `~/Pictures/xiaohongshu/`
+
 ### 步驟 5：組裝 `--content` 參數
 
 將萃取內容格式化為可讀文字傳入腳本：
@@ -129,7 +134,7 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 **一般網站**（直接儲存連結）：
 
 ```bash
-doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-collection-obsidian/scripts/save_collection.py \
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
   --title "標題" \
   --category Article \
   --content "原始內容或 URL"
@@ -140,7 +145,7 @@ doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-coll
 先完成「瀏覽器擷取模式」步驟，取得正文後：
 
 ```bash
-doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-collection-obsidian/scripts/save_collection.py \
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
   --title "從頁面萃取的標題" \
   --category Article \
   --content "作者：@xxx
@@ -172,7 +177,7 @@ doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-coll
 使用者要求改分類時：
 
 ```bash
-doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-collection-obsidian/scripts/update_category.py \
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/update_category.py \
   --path "collections/2026-02-18-標題.md" \
   --category Tutorial
 ```
@@ -182,5 +187,5 @@ doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-coll
 首次使用技能時，先執行確保索引頁面存在：
 
 ```bash
-doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-collection-obsidian/scripts/ensure_index.py
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/ensure_index.py
 ```
