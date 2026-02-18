@@ -50,12 +50,20 @@ def aws_sig_v4_headers(
     datestamp = now.strftime("%Y%m%d")
     amz_date = now.strftime("%Y%m%dT%H%M%SZ")
 
-    # 從 url 取得 path
-    from urllib.parse import urlparse
+    # 從 url 取得 path 和 query string
+    from urllib.parse import urlparse, parse_qs, urlencode
     parsed = urlparse(url)
     canonical_uri = parsed.path or "/"
 
-    canonical_querystring = ""
+    # 正確解析 query string（S3 Sig V4 要求排序後的 key=value）
+    if parsed.query:
+        qs_params = sorted(parsed.query.split("&"))
+        # 處理沒有 = 的參數（如 ?policy）
+        canonical_querystring = "&".join(
+            p if "=" in p else f"{p}=" for p in qs_params
+        )
+    else:
+        canonical_querystring = ""
 
     canonical_headers = (
         f"content-type:{content_type}\n"
@@ -163,8 +171,9 @@ def set_bucket_public(endpoint: str, bucket: str, access_key: str, secret_key: s
     req = urllib.request.Request(url, data=policy, method="PUT", headers=headers)
     try:
         urllib.request.urlopen(req)
-    except urllib.error.HTTPError:
-        pass  # 可能已設定，忽略
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        print(f"⚠️ 設定 bucket policy: HTTP {e.code}: {body}", file=sys.stderr)
 
 
 def upload_file(
