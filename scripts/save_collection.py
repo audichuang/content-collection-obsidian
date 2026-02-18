@@ -10,6 +10,11 @@ save_collection.py — 儲存收藏筆記到 Obsidian via Fast Note Sync
 用法:
   doppler run -p finviz -c dev -- python3 scripts/save_collection.py \
     --title "文章標題" --category Article --content "https://example.com"
+
+  # 含圖片:
+  doppler run -p finviz -c dev -- python3 scripts/save_collection.py \
+    --title "標題" --category Article --content "內容" \
+    --images "http://minio:9000/collections/img1.png,http://minio:9000/collections/img2.png"
 """
 
 import argparse
@@ -49,6 +54,7 @@ def main():
     parser.add_argument("--title", "-t", required=True, help="筆記標題")
     parser.add_argument("--category", "-c", required=True, help="分類")
     parser.add_argument("--content", required=True, help="原始內容或 URL")
+    parser.add_argument("--images", default="", help="圖片 URL，多張用逗號分隔")
     parser.add_argument("--folder", default="collections", help="Vault 內的資料夾 (預設: collections)")
     args = parser.parse_args()
 
@@ -82,7 +88,20 @@ def main():
         fm.append(f'source: "{content}"')
     fm += ["type: collection", "---"]
 
-    md_content = "\n".join(fm) + f"\n\n{content}\n"
+    # 組裝內文
+    body_parts = [content]
+
+    # 嵌入圖片
+    image_urls = [u.strip() for u in args.images.split(",") if u.strip()] if args.images else []
+    if image_urls:
+        body_parts.append("")  # 空行
+        body_parts.append("## 圖片")
+        body_parts.append("")
+        for i, url in enumerate(image_urls, 1):
+            body_parts.append(f"![圖片 {i}]({url})")
+            body_parts.append("")
+
+    md_content = "\n".join(fm) + "\n\n" + "\n".join(body_parts) + "\n"
 
     try:
         result = api_request("POST", "/note", {

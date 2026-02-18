@@ -16,6 +16,10 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 | `FAST_NOTE_URL` | Fast Note Sync 伺服器 URL |
 | `FAST_NOTE_TOKEN` | API Token |
 | `FAST_NOTE_VAULT` | Vault 名稱 |
+| `MINIO_ENDPOINT` | MinIO 端點 (e.g. 192.168.31.105:9000) |
+| `MINIO_ACCESS_KEY` | MinIO Access Key |
+| `MINIO_SECRET_KEY` | MinIO Secret Key |
+| `MINIO_BUCKET` | Bucket 名稱 (預設: collections) |
 
 ## 分類
 
@@ -83,9 +87,10 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 > **注意**：投影片區域通常有兩個箭頭按鈕（上一張/下一張），點擊計數器**右側**那個按鈕才是前進到下一張。
 
 **截圖檔案規則**：
-- browser tool 截圖會暫存於 `~/.openclaw/media/browser/`（系統自動管理，無需手動處理）
-- 只需視覺讀取截圖內容，**不要將截圖複製或移動到 `~/skills/` 下**
-- 若需要永久保存原始圖片（例如用於 Obsidian 附件），請存到 `~/Pictures/xiaohongshu/`
+
+* browser tool 截圖會暫存於 `~/.openclaw/media/browser/`（系統自動管理，無需手動處理）
+* 只需視覺讀取截圖內容，**不要將截圖複製或移動到 `~/skills/` 下**
+* 若需要永久保存原始圖片（例如用於 Obsidian 附件），請存到 `~/Pictures/xiaohongshu/`
 
 ### 步驟 5：組裝 `--content` 參數
 
@@ -138,6 +143,22 @@ doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scr
   --title "標題" \
   --category Article \
   --content "原始內容或 URL"
+```
+
+**含截圖的收藏**（先上傳圖片到 MinIO，再嵌入筆記）：
+
+```bash
+# 步驟 1: 上傳截圖到 MinIO
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/upload_image.py \
+  截圖1.png 截圖2.png --prefix "xiaohongshu/2026-02-19"
+# 輸出 JSON: [{"file": "截圖1.png", "url": "http://..."}]
+
+# 步驟 2: 儲存筆記，用 --images 嵌入
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
+  --title "標題" \
+  --category Article \
+  --content "內容文字" \
+  --images "http://minio-url/img1.png,http://minio-url/img2.png"
 ```
 
 **小紅書等 JS 網站**（先擷取內容，再儲存）：
