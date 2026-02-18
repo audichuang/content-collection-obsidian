@@ -88,9 +88,10 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 **截圖檔案規則**：
 
-* browser tool 截圖會暫存於 `~/.openclaw/media/browser/`（系統自動管理，無需手動處理）
-* 只需視覺讀取截圖內容，**不要將截圖複製或移動到 `~/skills/` 下**
-* 若需要永久保存原始圖片（例如用於 Obsidian 附件），請存到 `~/Pictures/xiaohongshu/`
+* browser tool 截圖會暫存於 `~/.openclaw/media/browser/<uuid>.png`（系統自動管理）
+* **不要將截圖複製或移動到 `~/skills/` 下**
+* 若要將圖片嵌入 Obsidian 筆記，使用 `upload_image.py` 上傳到 MinIO，再用 `--images` 嵌入（見下方「含截圖的收藏」流程）
+* 小紅書圖片貼文建議上傳所有截圖，讓 Obsidian 筆記可直接檢視原圖
 
 ### 步驟 5：組裝 `--content` 參數
 
