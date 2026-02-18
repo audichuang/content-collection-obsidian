@@ -1,8 +1,7 @@
-***
-
+---
 name: content-collection
 description: "Save URLs, articles, tweets, and text snippets to Obsidian vault via Fast Note Sync. Use when user shares a link, asks to save/collect/bookmark content. Trigger keywords: 收藏, 存起來, save, bookmark, collect, 幫我記, 加入收藏."
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 # Content Collection — 內容收藏到 Obsidian
 
@@ -27,35 +26,40 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 ## 網站類型判斷
 
 **直接儲存連結**（純文字 HTTP 可抓取）：
-- GitHub、Medium、Blog、新聞網站、YouTube、Twitter/X 等
+
+* GitHub、Medium、Blog、新聞網站、YouTube、Twitter/X 等
 
 **必須用瀏覽器擷取內容**（JS 動態渲染，HTTP 抓不到正文）：
-- `xiaohongshu.com`、`xhslink.com`（小紅書）
-- 其他開啟後頁面是空白或需登入才能看到內容的網站
+
+* `xiaohongshu.com`、`xhslink.com`（小紅書）
+* 其他開啟後頁面是空白或需登入才能看到內容的網站
 
 ## 瀏覽器擷取模式（小紅書等 JS 網站）
 
-當 URL 屬於需要瀏覽器擷取的網站時，**在呼叫 save_collection.py 之前**，先完成以下步驟：
+當 URL 屬於需要瀏覽器擷取的網站時，**在呼叫 save\_collection.py 之前**，先完成以下步驟：
 
 ### 步驟 1：開啟瀏覽器並導航
 
 使用 browser tool，指定 profile `openclaw`，開啟目標 URL：
-- action: `start`，profile: `openclaw`
-- action: `navigate`，url: `<目標URL>`
+
+* action: `start`，profile: `openclaw`
+* action: `navigate`，url: `<目標URL>`
 
 ### 步驟 2：等待並取得內容
 
 頁面載入後：
-- action: `snapshot`（取得 ARIA 內容樹，包含標題、正文、作者、標籤）
-- 若內容不完整，可用 action: `act`，method: `scroll` 向下捲動後再次 snapshot
+
+* action: `snapshot`（取得 ARIA 內容樹，包含標題、正文、作者、標籤）
+* 若內容不完整，可用 action: `act`，method: `scroll` 向下捲動後再次 snapshot
 
 ### 步驟 3：萃取關鍵內容
 
 從 snapshot 中整理：
-- **標題**：筆記的文章標題（50 字元以內）
-- **作者**：發文者名稱（若有）
-- **正文**：主要文字內容
-- **標籤**：頁面上的 hashtag 或分類標籤
+
+* **標題**：筆記的文章標題（50 字元以內）
+* **作者**：發文者名稱（若有）
+* **正文**：主要文字內容
+* **標籤**：頁面上的 hashtag 或分類標籤
 
 ### 步驟 4：組裝 `--content` 參數
 
