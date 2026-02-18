@@ -43,16 +43,25 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 使用 browser tool，指定 profile `openclaw`，開啟目標 URL：
 
 * action: `start`，profile: `openclaw`
-* action: `navigate`，url: `<目標URL>`
+* action: `navigate`，**targetUrl**: `<目標URL>`（注意：參數名稱是 `targetUrl`，不是 `url`）
 
-### 步驟 2：等待並取得內容
+### 步驟 2：處理登入彈窗
 
-頁面載入後：
+頁面載入後通常會出現「马上登录即可」登入提示彈窗（左側邊欄），處理方式：
 
-* action: `snapshot`（取得 ARIA 內容樹，包含標題、正文、作者、標籤）
-* 若內容不完整，可用 action: `act`，method: `scroll` 向下捲動後再次 snapshot
+1. 先嘗試 action: `press`，key: `Escape` 看能否關閉
+2. 若仍存在，在 snapshot 中找彈窗的關閉按鈕（叉叉圖示，通常是 `img [cursor=pointer]` 位於彈窗旁邊）並 click
+3. **若彈窗只佔左側欄但右側文章內容仍可見，可直接忽略彈窗，繼續進行擷取**——小紅書的登入牆通常不會完全遮蔽文章右側內容區塊
 
-### 步驟 3：萃取關鍵內容
+### 步驟 3：判斷貼文類型
+
+取得 snapshot 後，判斷這是哪種貼文：
+
+**A. 純文字貼文**：snapshot 中可以看到文章正文文字 → 直接從 snapshot 萃取內容
+
+**B. 圖片型貼文**（小紅書最常見）：snapshot 中文章內容區只有 img 元素，找不到正文文字，且能看到投影片計數器如 `generic: 1/5` → 必須逐張截圖讀取
+
+### 步驟 4A：純文字貼文 — 從 snapshot 萃取
 
 從 snapshot 中整理：
 
@@ -61,14 +70,32 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 * **正文**：主要文字內容
 * **標籤**：頁面上的 hashtag 或分類標籤
 
-### 步驟 4：組裝 `--content` 參數
+### 步驟 4B：圖片型貼文 — 逐張截圖讀取
 
-將萃取內容格式化為可讀文字傳入腳本，例如：
+小紅書圖片貼文的文字印在圖片裡，ARIA snapshot 無法抓到，必須用視覺讀取每張截圖：
+
+1. action: `screenshot` — 截第 1 張圖，用視覺讀取圖中文字
+2. 在 snapshot 中找到「下一張」箭頭按鈕：位於投影片計數器（如 `generic: 1/5`）旁邊，通常是 `img [ref=eXXX] [cursor=pointer]`（計數器右側那個）
+3. action: `click ref=eXXX` 切換到下一張
+4. 重複截圖 + 點擊，直到計數器顯示最後一張（如 `5/5`）
+5. 將所有圖片中讀取到的文字整合成完整內容
+
+> **注意**：投影片區域通常有兩個箭頭按鈕（上一張/下一張），點擊計數器**右側**那個按鈕才是前進到下一張。
+
+### 步驟 5：組裝 `--content` 參數
+
+將萃取內容格式化為可讀文字傳入腳本：
 
 ```
 作者：@作者名稱
 
-正文內容...（完整貼入）
+【第1張】
+圖片文字內容...
+
+【第2張】
+圖片文字內容...
+
+（依此類推）
 
 標籤：標籤1 標籤2
 
@@ -118,7 +145,11 @@ doppler run -p finviz -c dev -- python3 ~/GoogleDrive/Github/skills/content-coll
   --category Article \
   --content "作者：@xxx
 
-正文內容完整貼入...
+【第1張】
+內容...
+
+【第2張】
+內容...
 
 標籤：xxx xxx
 
