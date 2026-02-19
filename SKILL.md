@@ -31,31 +31,51 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 當 URL 屬於需要瀏覽器擷取的網站時，**呼叫 `fetch-xiaohongshu` 原子技能**來完成內容與圖片擷取。
 
-### 呼叫 fetch-xiaohongshu
+### 小節 A：呼叫 fetch-xiaohongshu（純資料擷取）
 
-依照 `fetch-xiaohongshu` 技能的說明，執行完整擷取流程，取得：
+依照 `fetch-xiaohongshu` 技能說明執行，取得：
 
 ```json
 {
   "title": "貼文標題",
   "author": "作者名稱",
-  "content": "文字內容",
+  "desc": "貼文說明文字",
   "tags": ["標籤1", "標籤2"],
-  "images": ["http://minio/img1.webp", "http://minio/img2.webp"]
+  "imageCount": 5,
+  "images": ["http://minio/img1.webp", ...],
+  "localFiles": ["/tmp/xhs_img_1.webp", ...]
 }
 ```
 
-> `fetch-xiaohongshu` 已包含：開啟瀏覽器、處理登入彈窗、Canvas 圖片擷取、上傳 MinIO。**本技能不需要重複執行這些步驟。**
+> `fetch-xiaohongshu` 負責：開啟瀏覽器、登入處理、Canvas 圖片擷取、上傳 MinIO。**此技能不做任何內容解讀。**
 
-### 整理內容（摘要 + 結構化）
+### 小節 B：逐張視覺讀取圖片（此步驟在本 session 執行）
 
-取得回傳資料後，必須整理成兩個部分：
+> ⚠️ **必須在本 agent session 親自執行，不可委派給 Bash subagent。**
+> 原因：`Read` 工具讀取圖片需要 AI 的視覺能力（multimodal），Bash subagent 沒有。
 
-**A. 摘要** —— 1-3 句話說明核心結論/要點：
+對 `localFiles` 中的每個路徑，使用 `Read` 工具讀取：
+
+```
+Read /tmp/xhs_img_1.webp
+Read /tmp/xhs_img_2.webp
+...（共 imageCount 張）
+```
+
+讀取每張圖片後，記錄：
+- 圖片中的主要文字、標題、條列重點
+- 數據、圖表資訊
+- 這張圖在貼文中的角色（封面、步驟 N、總結等）
+
+### 小節 C：合成內容（摘要 + 結構化）
+
+所有圖片讀取完成後，將 `desc` + 每張圖片的視覺內容整合：
+
+**A. 摘要** —— 1-3 句話說明核心結論：
 
 * 「讀完學到什麼？」或「核心觀點是什麼？」
 
-**B. 詳細內容** —— 結構化整理（若有圖片文字，需從截圖視覺讀取後融合）：
+**B. 詳細內容** —— 結構化整理，按主題分節（不是逐張複述）：
 
 ```
 作者：@作者名稱
@@ -71,9 +91,7 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 標籤：標籤1 標籤2
 ```
 
-> **重點**：不要逐張圖片複述，把所有內容融合整理成有邏輯的篇章，用標題分節。
-
-> **注意**：若圖片文字印在圖片內（ARIA snapshot 抓不到），在 `fetch-xiaohongshu` 步驟 4 逐張擷取圖片時，每擷取一張即用 `screenshot` 視覺讀取圖中文字，整合到內容中。
+> `desc` 通常是概述，圖片才是詳細展開。若圖片有連續步驟（Step 1/2/3），保留邏輯順序。
 
 ## 工作流程
 
