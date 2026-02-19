@@ -9,17 +9,20 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 ## 環境設定
 
-> **Doppler 配置**: 所有腳本需加前綴 `doppler run -p finviz -c dev --`
+> **Doppler 配置**:
+>
+> * 筆記操作: `doppler run -p finviz -c dev --`
+> * 圖片上傳: `doppler run -p minio -c dev --`
 
-| 環境變數 | 說明 |
-|----------|------|
-| `FAST_NOTE_URL` | Fast Note Sync 伺服器 URL |
-| `FAST_NOTE_TOKEN` | API Token |
-| `FAST_NOTE_VAULT` | Vault 名稱 |
-| `MINIO_ENDPOINT` | MinIO 端點 (e.g. 192.168.31.105:9000) |
-| `MINIO_ACCESS_KEY` | MinIO Access Key |
-| `MINIO_SECRET_KEY` | MinIO Secret Key |
-| `MINIO_BUCKET` | Bucket 名稱 (預設: collections) |
+| Doppler 專案 | 環境變數 | 說明 |
+|-------------|----------|------|
+| `finviz/dev` | `FAST_NOTE_URL` | Fast Note Sync 伺服器 URL |
+| `finviz/dev` | `FAST_NOTE_TOKEN` | API Token |
+| `finviz/dev` | `FAST_NOTE_VAULT` | Vault 名稱 |
+| `minio/dev` | `MINIO_ENDPOINT` | MinIO 端點 (e.g. 192.168.31.105:9000) |
+| `minio/dev` | `MINIO_ACCESS_KEY` | MinIO Access Key |
+| `minio/dev` | `MINIO_SECRET_KEY` | MinIO Secret Key |
+| `minio/dev` | `MINIO_BUCKET` | Bucket 名稱 (預設: collections) |
 
 ## 分類
 
@@ -149,12 +152,12 @@ doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scr
 **含截圖的收藏**（先上傳圖片到 MinIO，再嵌入筆記）：
 
 ```bash
-# 步驟 1: 上傳截圖到 MinIO
-doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/upload_image.py \
+# 步驟 1: 上傳截圖到 MinIO（用 minio 專案）
+doppler run -p minio -c dev -- python3 ~/skills/content-collection-obsidian/scripts/upload_image.py \
   截圖1.png 截圖2.png --prefix "xiaohongshu/2026-02-19"
 # 輸出 JSON: [{"file": "截圖1.png", "url": "http://..."}]
 
-# 步驟 2: 儲存筆記，用 --images 嵌入
+# 步驟 2: 儲存筆記，用 --images 嵌入（用 finviz 專案）
 doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
   --title "標題" \
   --category Article \
