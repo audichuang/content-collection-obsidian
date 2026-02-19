@@ -1,8 +1,7 @@
-***
-
-name: content-collection
+---
+name: content-collection-obsidian
 description: "Save URLs, articles, tweets, and text snippets to Obsidian vault via Fast Note Sync. Use when user shares a link, asks to save/collect/bookmark content. Trigger keywords: 收藏, 存起來, save, bookmark, collect, 幫我記, 加入收藏."
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 # Content Collection — 內容收藏到 Obsidian
 
@@ -26,7 +25,7 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 * `xiaohongshu.com`、`xhslink.com`（小紅書）
 
----
+***
 
 ## 小紅書工作流程
 
@@ -133,7 +132,7 @@ doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save
   --path "collections/YYYY-MM-DD-標題.md"
 ```
 
----
+***
 
 ## 一般網站工作流程
 
