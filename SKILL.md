@@ -60,41 +60,33 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 2. 若仍存在，在 snapshot 中找彈窗的關閉按鈕（叉叉圖示，通常是 `img [cursor=pointer]` 位於彈窗旁邊）並 click
 3. **若彈窗只佔左側欄但右側文章內容仍可見，可直接忽略彈窗，繼續進行擷取**——小紅書的登入牆通常不會完全遮蔽文章右側內容區塊
 
-### 步驟 3：判斷貼文類型
+### 步驟 3：截圖（所有貼文都必須做）
 
-取得 snapshot 後，判斷這是哪種貼文：
+**不論是文字貼文或圖片貼文，都必須至少截一張圖**，讓 Obsidian 筆記保留視覺紀錄（封面圖、內容圖）。
 
-**A. 純文字貼文**：snapshot 中可以看到文章正文文字 → 直接從 snapshot 萃取內容
+**A. 多圖投影片貼文**（snapshot 中看到計數器如 `generic: 1/5`）：
 
-**B. 圖片型貼文**（小紅書最常見）：snapshot 中文章內容區只有 img 元素，找不到正文文字，且能看到投影片計數器如 `generic: 1/5` → 必須逐張截圖讀取
-
-### 步驟 4A：純文字貼文 — 從 snapshot 萃取
-
-從 snapshot 中整理：
-
-* **標題**：筆記的文章標題（50 字元以內）
-* **作者**：發文者名稱（若有）
-* **正文**：主要文字內容
-* **標籤**：頁面上的 hashtag 或分類標籤
-
-### 步驟 4B：圖片型貼文 — 逐張截圖讀取
-
-小紅書圖片貼文的文字印在圖片裡，ARIA snapshot 無法抓到，必須用視覺讀取每張截圖：
-
-1. action: `screenshot` — 截第 1 張圖，用視覺讀取圖中文字
-2. 在 snapshot 中找到「下一張」箭頭按鈕：位於投影片計數器（如 `generic: 1/5`）旁邊，通常是 `img [ref=eXXX] [cursor=pointer]`（計數器右側那個）
+1. action: `screenshot` — 截第 1 張，用視覺讀取圖中文字
+2. 在 snapshot 中找「下一張」箭頭：位於計數器旁邊，通常是 `img [ref=eXXX] [cursor=pointer]`（計數器**右側**那個）
 3. action: `click ref=eXXX` 切換到下一張
 4. 重複截圖 + 點擊，直到計數器顯示最後一張（如 `5/5`）
-5. 將所有圖片中讀取到的文字整合成完整內容
 
-> **注意**：投影片區域通常有兩個箭頭按鈕（上一張/下一張），點擊計數器**右側**那個按鈕才是前進到下一張。
+**B. 單張圖或純文字貼文**（無計數器）：
+
+1. action: `screenshot` — 截一張完整頁面截圖即可
+2. 文字內容從 snapshot ARIA 樹萃取；圖片內容從截圖視覺讀取
 
 **截圖檔案規則**：
 
-* browser tool 截圖會暫存於 `~/.openclaw/media/browser/<uuid>.png`（系統自動管理）
+* browser tool 截圖暫存於 `~/.openclaw/media/browser/<uuid>.png`（系統自動管理）
 * **不要將截圖複製或移動到 `~/skills/` 下**
-* 若要將圖片嵌入 Obsidian 筆記，使用 `upload_image.py` 上傳到 MinIO，再用 `--images` 嵌入（見下方「含截圖的收藏」流程）
-* 小紅書圖片貼文建議上傳所有截圖，讓 Obsidian 筆記可直接檢視原圖
+* 截完後上傳到 MinIO，再用 `--images` 嵌入 Obsidian（見下方「含截圖的收藏」流程）
+
+### 步驟 4：萃取文字內容
+
+* **文字貼文**：從 snapshot ARIA 樹中找到正文文字直接整理
+* **圖片貼文**：從截圖視覺讀取每張圖中的文字
+* 兩者都有時：結合 snapshot 文字 + 截圖視覺
 
 ### 步驟 5：整理內容（摘要 + 結構化）
 
