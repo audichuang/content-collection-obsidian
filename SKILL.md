@@ -233,6 +233,22 @@ doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upda
 
 ## 首次使用
 
-```bash
-doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/ensure_index.py --folder collections
-```
+建立 collections 的自訂索引頁面：
+
+````bash
+doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
+  --path "collections/_index.md" \
+  --content '---
+title: "Collections Index"
+type: index
+---
+
+# 📚 Collections Index
+
+```dataview
+TABLE file.ctime AS "加入時間", category AS "分類", source AS "來源"
+FROM "collections"
+WHERE type != "index"
+SORT file.ctime DESC
+```'
+````
