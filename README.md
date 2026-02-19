@@ -4,13 +4,13 @@
 
 ## 架構
 
-```
-SKILL.md                ← Agent 指引
-scripts/
-├── save_collection.py  ← 儲存筆記 (POST /api/note)
-├── update_category.py  ← 更改分類 (PATCH /api/note/frontmatter)
-└── ensure_index.py     ← 建立 Dataview 索引頁
-```
+本 SKILL 是純編排技能，不含自有腳本。協調以下原子技能完成收藏流程：
+
+| 原子技能 | 職責 |
+|----------|------|
+| `fetch-xiaohongshu` | 瀏覽器擷取小紅書貼文內容與圖片 |
+| `uploading-to-minio` | 圖片上傳至 MinIO 物件儲存 |
+| `saving-to-obsidian` | Markdown 筆記寫入 Obsidian |
 
 ## 使用方式
 
