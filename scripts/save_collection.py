@@ -11,10 +11,13 @@ save_collection.py — 儲存收藏筆記到 Obsidian via Fast Note Sync
   doppler run -p finviz -c dev -- python3 scripts/save_collection.py \
     --title "文章標題" --category Article --content "https://example.com"
 
-  # 含圖片:
+  # 完整格式（含摘要、圖片、來源）:
   doppler run -p finviz -c dev -- python3 scripts/save_collection.py \
-    --title "標題" --category Article --content "內容" \
-    --images "http://minio:9000/collections/img1.png,http://minio:9000/collections/img2.png"
+    --title "標題" --category Article \
+    --summary "這篇文章的核心要點..." \
+    --content "詳細內容" \
+    --images "url1,url2" \
+    --source "https://example.com"
 """
 
 import argparse
@@ -53,8 +56,10 @@ def main():
     parser = argparse.ArgumentParser(description="儲存收藏筆記到 Obsidian")
     parser.add_argument("--title", "-t", required=True, help="筆記標題")
     parser.add_argument("--category", "-c", required=True, help="分類")
-    parser.add_argument("--content", required=True, help="原始內容或 URL")
+    parser.add_argument("--summary", "-s", default="", help="摘要（1-3 句話說明核心要點）")
+    parser.add_argument("--content", required=True, help="詳細內容")
     parser.add_argument("--images", default="", help="圖片 URL，多張用逗號分隔")
+    parser.add_argument("--source", default="", help="原始來源 URL")
     parser.add_argument("--folder", default="collections", help="Vault 內的資料夾 (預設: collections)")
     args = parser.parse_args()
 
@@ -75,7 +80,12 @@ def main():
 
     # 判斷是否為 URL
     content = args.content.strip()
+    source = args.source.strip() if args.source else ""
+
+    # 如果 content 本身就是 URL 且沒有指定 --source，自動當作 source
     is_url = bool(re.match(r"https?://", content))
+    if is_url and not source:
+        source = content
 
     # 組裝 YAML frontmatter
     fm = [
@@ -84,22 +94,34 @@ def main():
         f"category: {args.category}",
         f"date: {date_str}",
     ]
-    if is_url:
-        fm.append(f'source: "{content}"')
+    if source:
+        fm.append(f'source: "{source}"')
     fm += ["type: collection", "---"]
 
-    # 組裝內文
-    body_parts = [content]
+    # 組裝內文：摘要 → 詳細內容 → 圖片 → 來源
+    body_parts = []
 
-    # 嵌入圖片
+    # 1. 摘要
+    if args.summary:
+        body_parts.append("> " + args.summary.replace("\n", "\n> "))
+        body_parts.append("")
+
+    # 2. 詳細內容（如果 content 不是單純的 URL）
+    if not is_url or source != content:
+        body_parts.append(content)
+        body_parts.append("")
+
+    # 3. 嵌入圖片
     image_urls = [u.strip() for u in args.images.split(",") if u.strip()] if args.images else []
     if image_urls:
-        body_parts.append("")  # 空行
-        body_parts.append("## 圖片")
-        body_parts.append("")
         for i, url in enumerate(image_urls, 1):
             body_parts.append(f"![圖片 {i}]({url})")
             body_parts.append("")
+
+    # 4. 來源
+    if source:
+        body_parts.append(f"---\n\n來源：{source}")
+        body_parts.append("")
 
     md_content = "\n".join(fm) + "\n\n" + "\n".join(body_parts) + "\n"
 

@@ -1,7 +1,7 @@
 ---
 name: content-collection
 description: "Save URLs, articles, tweets, and text snippets to Obsidian vault via Fast Note Sync. Use when user shares a link, asks to save/collect/bookmark content. Trigger keywords: 收藏, 存起來, save, bookmark, collect, 幫我記, 加入收藏."
----
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Content Collection — 內容收藏到 Obsidian
 
@@ -96,27 +96,32 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 * 若要將圖片嵌入 Obsidian 筆記，使用 `upload_image.py` 上傳到 MinIO，再用 `--images` 嵌入（見下方「含截圖的收藏」流程）
 * 小紅書圖片貼文建議上傳所有截圖，讓 Obsidian 筆記可直接檢視原圖
 
-### 步驟 5：組裝 `--content` 參數
+### 步驟 5：整理內容（摘要 + 結構化）
 
-將萃取內容格式化為可讀文字傳入腳本：
+從截圖或 snapshot 中萃取內容後，必須整理成兩個部分：
+
+**A. 摘要**（`--summary`）—— 1-3 句話說明這篇的核心結論/要點：
+
+* 「讀完學到什麼？」或「核心觀點是什麼？」
+* 例：「小紅書帳號蟟攟的三個關鍵：首因評論與收藏比按讚重要，高互動內容優先，新帳號前 7 天每日發佈必要」
+
+**B. 詳細內容**（`--content`）—— 結構化整理，不是逐張複述：
 
 ```
 作者：@作者名稱
 
-【第1張】
-圖片文字內容...
+## 要點一：標題
 
-【第2張】
-圖片文字內容...
+說明文字...
 
-（依此類推）
+## 要點二：標題
+
+說明文字...
 
 標籤：標籤1 標籤2
-
-來源：https://xiaohongshu.com/...
 ```
 
-> **重點**：`--content` 要包含完整正文，讓 Obsidian 筆記有實際可讀內容，而不只是 URL。
+> **重點**：不要寫「第 1 張圖寫了 xxx、第 2 張圖寫了 xxx」，而是把所有圖片內容融合整理成有邏輯的篇章，用標題分節。
 
 ## 工作流程
 
@@ -146,7 +151,18 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
   --title "標題" \
   --category Article \
-  --content "原始內容或 URL"
+  --content "https://example.com"
+```
+
+**含摘要的收藏**（推薦，所有筆記都應包含摘要）：
+
+```bash
+doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
+  --title "標題" \
+  --category Article \
+  --summary "這篇文章的核心要點是..." \
+  --content "結構化整理後的詳細內容" \
+  --source "https://example.com"
 ```
 
 **含截圖的收藏**（先上傳圖片到 MinIO，再嵌入筆記）：
@@ -157,33 +173,37 @@ doppler run -p minio -c dev -- python3 ~/skills/content-collection-obsidian/scri
   截圖1.png 截圖2.png --prefix "xiaohongshu/2026-02-19"
 # 輸出 JSON: [{"file": "截圖1.png", "url": "http://..."}]
 
-# 步驟 2: 儲存筆記，用 --images 嵌入（用 finviz 專案）
+# 步驟 2: 儲存筆記（用 finviz 專案）
 doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
   --title "標題" \
   --category Article \
-  --content "內容文字" \
-  --images "http://minio-url/img1.png,http://minio-url/img2.png"
+  --summary "摘要結論" \
+  --content "結構化整理的詳細內容" \
+  --images "http://minio-url/img1.png,http://minio-url/img2.png" \
+  --source "https://xiaohongshu.com/..."
 ```
 
 **小紅書等 JS 網站**（先擷取內容，再儲存）：
 
-先完成「瀏覽器擷取模式」步驟，取得正文後：
+先完成「瀏覽器擷取模式」步驟，整理摘要和結構化內容後：
 
 ```bash
 doppler run -p finviz -c dev -- python3 ~/skills/content-collection-obsidian/scripts/save_collection.py \
   --title "從頁面萃取的標題" \
   --category Article \
+  --summary "這篇的核心要點是..." \
   --content "作者：@xxx
 
-【第1張】
-內容...
+## 要點一
 
-【第2張】
-內容...
+整理後的內容...
 
-標籤：xxx xxx
+## 要點二
 
-來源：https://xiaohongshu.com/..."
+整理後的內容...
+
+標籤：xxx xxx" \
+  --source "https://xiaohongshu.com/..."
 ```
 
 成功後腳本會輸出 `note_path`，你需要記住它（用於後續改分類）。
