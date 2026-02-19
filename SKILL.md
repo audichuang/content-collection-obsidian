@@ -8,7 +8,7 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 將 URL、文章、推文或文字片段儲存為 Obsidian Markdown 筆記。
 
-> **這是編排技能**：協調 `saving-to-obsidian` 和 `uploading-to-minio` 原子技能完成收藏流程。
+> **這是編排技能**：協調 `fetch-xiaohongshu`、`saving-to-obsidian` 和 `uploading-to-minio` 原子技能完成收藏流程。
 
 ## 分類
 
@@ -29,67 +29,33 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 ## 瀏覽器擷取模式（小紅書等 JS 網站）
 
-當 URL 屬於需要瀏覽器擷取的網站時，**在存入 Obsidian 之前**，先完成以下步驟：
+當 URL 屬於需要瀏覽器擷取的網站時，**呼叫 `fetch-xiaohongshu` 原子技能**來完成內容與圖片擷取。
 
-### 步驟 1：開啟瀏覽器並導航
+### 呼叫 fetch-xiaohongshu
 
-使用 browser tool，指定 profile `openclaw`，開啟目標 URL：
+依照 `fetch-xiaohongshu` 技能的說明，執行完整擷取流程，取得：
 
-* action: `start`，profile: `openclaw`
-* action: `navigate`，**targetUrl**: `<目標URL>`（注意：參數名稱是 `targetUrl`，不是 `url`）
+```json
+{
+  "title": "貼文標題",
+  "author": "作者名稱",
+  "content": "文字內容",
+  "tags": ["標籤1", "標籤2"],
+  "images": ["http://minio/img1.webp", "http://minio/img2.webp"]
+}
+```
 
-### 步驟 2：處理登入彈窗
+> `fetch-xiaohongshu` 已包含：開啟瀏覽器、處理登入彈窗、Canvas 圖片擷取、上傳 MinIO。**本技能不需要重複執行這些步驟。**
 
-頁面載入後通常會出現「马上登录即可」登入提示彈窗（左側邊欄），處理方式：
+### 整理內容（摘要 + 結構化）
 
-1. 先嘗試 action: `press`，key: `Escape` 看能否關閉
-2. 若仍存在，在 snapshot 中找彈窗的關閉按鈕（叉叉圖示，通常是 `img [cursor=pointer]` 位於彈窗旁邊）並 click
-3. **若彈窗只佔左側欄但右側文章內容仍可見，可直接忽略彈窗，繼續進行擷取**——小紅書的登入牆通常不會完全遮蔽文章右側內容區塊
+取得回傳資料後，必須整理成兩個部分：
 
-### 步驟 3：判斷貼文類型
-
-取得 snapshot 後，判斷這是哪種貼文：
-
-**A. 純文字貼文**：snapshot 中可以看到文章正文文字 → 直接從 snapshot 萃取內容
-
-**B. 圖片型貼文**（小紅書最常見）：snapshot 中文章內容區只有 img 元素，找不到正文文字，且能看到投影片計數器如 `generic: 1/5` → 必須逐張截圖讀取
-
-### 步驟 4A：純文字貼文 — 從 snapshot 萃取
-
-從 snapshot 中整理：
-
-* **標題**：筆記的文章標題（50 字元以內）
-* **作者**：發文者名稱（若有）
-* **正文**：主要文字內容
-* **標籤**：頁面上的 hashtag 或分類標籤
-
-### 步驟 4B：圖片型貼文 — 逐張截圖讀取
-
-小紅書圖片貼文的文字印在圖片裡，ARIA snapshot 無法抓到，必須用視覺讀取每張截圖：
-
-1. action: `screenshot` — 截第 1 張圖，用視覺讀取圖中文字
-2. 在 snapshot 中找到「下一張」箭頭按鈕：位於投影片計數器（如 `generic: 1/5`）旁邊，通常是 `img [ref=eXXX] [cursor=pointer]`（計數器右側那個）
-3. action: `click ref=eXXX` 切換到下一張
-4. 重複截圖 + 點擊，直到計數器顯示最後一張（如 `5/5`）
-5. 將所有圖片中讀取到的文字整合成完整內容
-
-> **注意**：投影片區域通常有兩個箭頭按鈕（上一張/下一張），點擊計數器**右側**那個按鈕才是前進到下一張。
-
-**截圖檔案規則**：
-
-* browser tool 截圖會暫存於 `~/.openclaw/media/browser/<uuid>.png`（系統自動管理）
-* **不要將截圖複製或移動到 `~/skills/` 下**
-* 若要將圖片嵌入 Obsidian 筆記，使用 `uploading-to-minio` 技能上傳，再嵌入（見下方流程）
-
-### 步驟 5：整理內容（摘要 + 結構化）
-
-從截圖或 snapshot 中萃取內容後，必須整理成兩個部分：
-
-**A. 摘要** —— 1-3 句話說明這篇的核心結論/要點：
+**A. 摘要** —— 1-3 句話說明核心結論/要點：
 
 * 「讀完學到什麼？」或「核心觀點是什麼？」
 
-**B. 詳細內容** —— 結構化整理，不是逐張複述：
+**B. 詳細內容** —— 結構化整理（若有圖片文字，需從截圖視覺讀取後融合）：
 
 ```
 作者：@作者名稱
@@ -105,7 +71,9 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 標籤：標籤1 標籤2
 ```
 
-> **重點**：不要寫「第 1 張圖寫了 xxx、第 2 張圖寫了 xxx」，而是把所有圖片內容融合整理成有邏輯的篇章，用標題分節。
+> **重點**：不要逐張圖片複述，把所有內容融合整理成有邏輯的篇章，用標題分節。
+
+> **注意**：若圖片文字印在圖片內（ARIA snapshot 抓不到），在 `fetch-xiaohongshu` 步驟 4 逐張擷取圖片時，每擷取一張即用 `screenshot` 視覺讀取圖中文字，整合到內容中。
 
 ## 工作流程
 
@@ -125,11 +93,12 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 ### 2. 上傳圖片（如需要）
 
-若有截圖需要嵌入筆記，先上傳到 MinIO：
+* **小紅書**：`fetch-xiaohongshu` 已完成圖片擷取與上傳，直接使用回傳的 `images` URL 陣列。
+* **其他網站有截圖需要嵌入**：
 
 ```bash
 doppler run -p minio -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
-  截圖1.png 截圖2.png --prefix "xiaohongshu/2026-02-19"
+  截圖1.png 截圖2.png --prefix "collections/$(date +%Y-%m-%d)"
 ```
 
 取得回傳的圖片 URL 備用。
