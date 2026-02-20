@@ -25,7 +25,7 @@ description: "Save URLs, articles, tweets, and text snippets to Obsidian vault v
 
 * `xiaohongshu.com`、`xhslink.com`（小紅書）
 
----
+***
 
 ## 小紅書工作流程
 
@@ -127,7 +127,7 @@ Read /tmp/xhs_img_2.webp  → 記錄圖片內容
 ### D. 上傳圖片到 MinIO
 
 ```bash
-doppler run -p minio -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
+doppler run -p storage -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
   /tmp/xhs_img_1.webp /tmp/xhs_img_2.webp ... \
   --prefix "xiaohongshu/$(date +%Y-%m-%d)"
 ```
@@ -179,14 +179,14 @@ author: "原作者名稱"
 存入命令：
 
 ```bash
-doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
+doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
   --content "組裝好的完整 Markdown" \
   --path "collections/[Category]/YYYY-MM-DD-標題.md"
 ```
 
 > 將 `[Category]` 替換為實際選擇的分類名稱（如 `Article`、`Tutorial`、`Tweet` 等）。
 
----
+***
 
 ## 一般網站工作流程
 
@@ -207,7 +207,7 @@ doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save
 ### 2. 上傳圖片（如有截圖需嵌入）
 
 ```bash
-doppler run -p minio -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
+doppler run -p storage -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
   截圖.png --prefix "collections/$(date +%Y-%m-%d)"
 ```
 
@@ -224,7 +224,7 @@ doppler run -p minio -c dev -- python3 ~/skills/uploading-to-minio/scripts/uploa
 ### 5. 更改分類（可選）
 
 ```bash
-doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/update_frontmatter.py \
+doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/update_frontmatter.py \
   --path "collections/Article/2026-02-18-標題.md" \
   --updates '{"category": "Tutorial"}'
 ```
@@ -236,7 +236,7 @@ doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upda
 建立 collections 的自訂索引頁面：
 
 ````bash
-doppler run -p finviz -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
+doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
   --path "collections/_index.md" \
   --content '---
 title: "Collections Index"
