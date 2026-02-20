@@ -1,6 +1,6 @@
 ---
 name: content-collection-obsidian
-description: "Save URLs, articles, tweets, and text snippets to Obsidian vault via Fast Note Sync. Use when user shares a link, asks to save/collect/bookmark content. Trigger keywords: 收藏, 存起來, save, bookmark, collect, 幫我記, 加入收藏."
+description: "【必載技能】當使用者要求將任何外部內容（貼文、文章、連結、小紅書、推文）整理、收藏或存入筆記時，必須優先載入此技能，不可直接呼叫 fetch-xiaohongshu 或 saving-to-obsidian。此技能負責完整存檔工作流：內容擷取 → 圖片下載 → MinIO 上傳 → Obsidian 寫入，缺少任一步驟都會導致圖片遺失。觸發關鍵字：收藏, 存起來, 整理到筆記, 存到筆記, 整理貼文, 幫我整理, 存入筆記, 筆記, 小紅書收藏, 存筆記, 記下來, 存檔, 幫我存, save, bookmark, collect, 幫我記, 加入收藏, Obsidian."
 ---
 
 # Content Collection — 內容收藏到 Obsidian
