@@ -1,13 +1,13 @@
 ---
 name: content-collection-obsidian
-description: "【必載技能】當使用者要求將任何外部內容（貼文、文章、連結、小紅書、推文）整理、收藏或存入筆記時，必須優先載入此技能，不可直接呼叫 fetch-xiaohongshu 或 saving-to-obsidian。此技能負責完整存檔工作流：內容擷取 → 圖片下載 → MinIO 上傳 → Obsidian 寫入，缺少任一步驟都會導致圖片遺失。觸發關鍵字：收藏, 存起來, 整理到筆記, 存到筆記, 整理貼文, 幫我整理, 存入筆記, 筆記, 小紅書收藏, 存筆記, 記下來, 存檔, 幫我存, save, bookmark, collect, 幫我記, 加入收藏, Obsidian."
+description: "【必載技能】當使用者要求將任何外部內容（貼文、文章、連結、小紅書、推文）整理、收藏或存入筆記時，必須優先載入此技能，不可直接呼叫 fetch-xiaohongshu 或 saving-to-obsidian。此技能負責完整存檔工作流：內容擷取 → 圖片下載 → 附件上傳 → Obsidian 寫入，缺少任一步驟都會導致圖片遺失。觸發關鍵字：收藏, 存起來, 整理到筆記, 存到筆記, 整理貼文, 幫我整理, 存入筆記, 筆記, 小紅書收藏, 存筆記, 記下來, 存檔, 幫我存, save, bookmark, collect, 幫我記, 加入收藏, Obsidian."
 ---
 
 # Content Collection — 內容收藏到 Obsidian
 
 將 URL、文章、推文或文字片段儲存為 Obsidian Markdown 筆記。
 
-> **這是編排技能**：協調 `fetch-xiaohongshu`、`uploading-to-minio`、`saving-to-obsidian` 原子技能完成收藏流程。
+> **這是編排技能**：協調 `fetch-xiaohongshu`、`saving-to-obsidian` 原子技能完成收藏流程。
 
 ## 分類
 
@@ -124,19 +124,23 @@ Read /tmp/xhs_img_2.webp  → 記錄圖片內容
 標籤：標籤1 標籤2
 ```
 
-### D. 上傳圖片到 MinIO
+### D. 上傳圖片到 Obsidian Vault
+
+使用 `saving-to-obsidian` 的 `upload_file.py` 將圖片上傳到 Service：
 
 ```bash
-doppler run -p storage -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
+doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upload_file.py \
   /tmp/xhs_img_1.webp /tmp/xhs_img_2.webp ... \
-  --prefix "xiaohongshu/$(date +%Y-%m-%d)"
+  --prefix "assets/xiaohongshu/$(date +%Y-%m-%d)"
 ```
 
-取得回傳 JSON，提取每個物件的 `url` 欄位備用。
+取得回傳 JSON，提取每個物件的 `path` 欄位備用。
+
+> 上傳後的圖片會透過 Fast Note Sync 同步到所有裝置的 Obsidian Vault 中。
 
 ### E. 組裝 Markdown 並存入 Obsidian
 
-組裝完整 Markdown（含 YAML frontmatter）：
+組裝完整 Markdown（含 YAML frontmatter），圖片使用 Obsidian 原生 `![[path]]` 語法：
 
 ```markdown
 ---
@@ -168,8 +172,8 @@ author: "原作者名稱"
 
 ## 圖片原文
 
-![圖片 1](http://minio-url/img1.webp)
-![圖片 2](http://minio-url/img2.webp)
+![[assets/xiaohongshu/2026-02-28/xhs_img_1.webp]]
+![[assets/xiaohongshu/2026-02-28/xhs_img_2.webp]]
 
 ---
 
@@ -207,7 +211,7 @@ doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/sav
 ### 2. 上傳圖片（如有截圖需嵌入）
 
 ```bash
-doppler run -p storage -c dev -- python3 ~/skills/uploading-to-minio/scripts/upload_file.py \
+doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upload_file.py \
   截圖.png --prefix "collections/$(date +%Y-%m-%d)"
 ```
 
@@ -235,20 +239,6 @@ doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upd
 
 建立 collections 的自訂索引頁面：
 
-````bash
-doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
-  --path "collections/_index.md" \
-  --content '---
-title: "Collections Index"
-type: index
----
-
-# 📚 Collections Index
-
-```dataview
-TABLE file.ctime AS "加入時間", category AS "分類", source AS "來源"
-FROM "collections"
-WHERE type != "index"
-SORT file.ctime DESC
-```'
-````
+```bash
+doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/ensure_index.py --folder collections
+```
