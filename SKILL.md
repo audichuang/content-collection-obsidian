@@ -1,244 +1,182 @@
 ---
 name: content-collection-obsidian
-description: "【必載技能】當使用者要求將任何外部內容（貼文、文章、連結、小紅書、推文）整理、收藏或存入筆記時，必須優先載入此技能，不可直接呼叫 fetch-xiaohongshu 或 saving-to-obsidian。此技能負責完整存檔工作流：內容擷取 → 圖片下載 → 附件上傳 → Obsidian 寫入，缺少任一步驟都會導致圖片遺失。觸發關鍵字：收藏, 存起來, 整理到筆記, 存到筆記, 整理貼文, 幫我整理, 存入筆記, 筆記, 小紅書收藏, 存筆記, 記下來, 存檔, 幫我存, save, bookmark, collect, 幫我記, 加入收藏, Obsidian."
+description: "當使用者要求收藏、整理外部內容（小紅書貼文、文章、推文、連結等）到 Obsidian 時使用此技能。善用 redbook CLI 擷取小紅書內容（含影片），用 Gemini API 分析影片重點，透過 saving-to-obsidian 腳本存入筆記。觸發關鍵字：收藏, 存起來, 整理貼文, 小紅書收藏, bookmark, collect, 加入收藏."
 ---
 
 # Content Collection — 內容收藏到 Obsidian
 
-將 URL、文章、推文或文字片段儲存為 Obsidian Markdown 筆記。
+將 URL、文章、推文或文字片段收藏為 Obsidian Markdown 筆記。
 
-> **這是編排技能**：協調 `fetch-xiaohongshu`、`saving-to-obsidian` 原子技能完成收藏流程。
+> **編排技能**：協調 `redbook` CLI、`saving-to-obsidian` 技能腳本（`upload_file.py` / `save_note.py` / `list_vault.py`）、`analyze_video.py` 完成收藏流程。
+> **注意：`saving-to-obsidian` 是腳本工具，不是 MCP Server。**
 
-## 分類
+## 收藏流程檢核表
 
-可用分類（依內容選擇最合適的一個）：
+### 小紅書內容
 
-`Article` · `Video` · `Tweet` · `Tutorial` · `Resource` · `Personal` · `Other`
+```
+- [ ] 1. 確認來源為小紅書 URL（含 xsec_token）
+- [ ] 2. redbook read --json <url> → 取得完整 JSON
+- [ ] 3. 從 JSON 提取：title, desc, type, user.nickname, image_list, tag_list
+- [ ] 4. 判斷 type：若為 "video" → 下載影片 + 執行步驟 6
+- [ ] 5. 下載所有圖片：curl -o /tmp/xhs_img_N.webp <image_list[N].url_default>
+- [ ] 6. 【影片限定】下載影片：curl -o /tmp/video.mp4 <video.media.stream 最高畫質 master_url>
+- [ ] 7. 【影片限定】取得影片內容理解：doppler run -p api-key -c dev -- uv run ~/skills/content-collection-obsidian/scripts/analyze_video.py /tmp/video.mp4 → 閱讀輸出，理解影片內容
+- [ ] 8. 上傳所有媒體到 Obsidian Vault（upload_file.py）
+- [ ] 9. 組裝 Markdown（套用下方模板，影片類需根據步驟 7 的理解自行撰寫重點整理）
+- [ ] 10. 存入 Obsidian（save_note.py）
+- [ ] 11. 回報：✅ 標題 / 分類 / 路徑
+```
 
-## 網站類型判斷
+### 一般網站
 
-**直接儲存連結**（純文字 HTTP 可抓取）：
+```
+- [ ] 1. 確認來源類型（一般 URL / Twitter / YouTube 等）
+- [ ] 2. HTTP 抓取或瀏覽器擷取內容
+- [ ] 3. 整理內容 → 選擇分類 + 撰寫摘要（1-3 句）
+- [ ] 4. 如有圖片需嵌入 → 下載並上傳到 Obsidian Vault
+- [ ] 5. 組裝 Markdown（套用下方模板）→ 存入 Obsidian
+- [ ] 6. 回報：✅ 標題 / 分類 / 路徑
+```
 
-* GitHub、Medium、Blog、新聞網站、YouTube、Twitter/X 等
+## 分類規則
 
-**必須用瀏覽器擷取內容**（JS 動態渲染）：
+| 來源 | 分類 |
+|------|------|
+| 小紅書圖文 | `Article` |
+| 小紅書/YouTube 影片 | `Video` |
+| Twitter / X | `Tweet` |
+| 教學類內容 | `Tutorial` |
+| 其他依內容判斷 | `Resource` / `Personal` / `Other` |
 
-* `xiaohongshu.com`、`xhslink.com`（小紅書）
-
-***
+收藏路徑：`collections/<Category>/YYYY-MM-DD-<標題>.md`
 
 ## 小紅書工作流程
 
-### A. 呼叫 fetch-xiaohongshu（純抓取）
-
-依照 `fetch-xiaohongshu` 技能說明執行，取得：
-
-```json
-{
-  "title": "貼文標題",
-  "author": "作者名稱",
-  "desc": "貼文說明文字",
-  "tags": ["標籤1", "標籤2"],
-  "imageCount": 5,
-  "localFiles": ["/tmp/xhs_img_1.webp", "/tmp/xhs_img_2.webp", "..."]
-}
-```
-
-> `fetch-xiaohongshu` 只負責抓取，**不讀圖、不上傳**。
-
-### B. 逐張視覺讀取圖片
-
-> ⚠️ **必須在本 agent session 執行，不可委派給 Bash subagent。**
-> `Read` 工具讀取圖片需要 AI 視覺能力，Bash subagent 沒有。
-
-對 `localFiles` 中每個路徑使用 `Read` 工具逐張讀取：
-
-```
-Read /tmp/xhs_img_1.webp  → 記錄圖片內容
-Read /tmp/xhs_img_2.webp  → 記錄圖片內容
-...（共 imageCount 張）
-```
-
-每張記錄：主要文字、標題、條列重點、數據圖表、在貼文中的角色。
-
-> **結構化欄位識別**：小紅書教學/案例類貼文常見以下結構，讀圖時務必辨識：
->
-> * 編號標題（如 `001. xxx`）
-> * 「做了什麼」段落
-> * 「怎麼做的」段落（含 (1)(2)(3)... 編號步驟）
-> * 「數據來源」「觸發條件」「輸出位置」「頻率」等固定欄位
-> * 原作者標注（`原作者：@xxx`）
->
-> 若圖片中有以上結構，**必須逐欄位完整記錄，不可摘要壓縮**。
-
-### C. 合成完整內容
-
-將 `desc` + 所有圖片視覺內容整合。
-
-**摘要**：1-3 句話說明核心結論（「讀完學到什麼？」）
-
-#### 合成規則
-
-1. **保留原文結構**：若原文有編號、步驟、欄位標題（如「數據來源」「觸發條件」），必須原樣保留，不可改寫或壓縮
-2. **保留具體名稱**：產品名、公司名、平台名、工具名必須保留（如「騰訊、美團年報」不可改為「數百頁年報」）
-3. **保留數字細節**：百分比、時間、數量等具體數字必須保留
-4. **去除廣告**：`<關注小馬useai.live>` 等推廣內容應移除
-5. **合併跨圖內容**：同一場景分佈在多張圖片中的內容，合併到同一段落下
-
-#### 結構化內容模板（教學/案例/場景列表類）
-
-```
-作者：@作者名稱
-
----
-
-## 場景標題
-
-**做了什麼**：原文描述...
-
-**怎麼做的**：
-
-- (1) 步驟一描述
-- (2) 步驟二描述
-- (3) 步驟三描述
-
-> 數據來源 / 觸發條件 / 輸出位置 / 頻率等欄位，若原文有則按原文保留。
-
----
-
-## 下一個場景標題
-...
-```
-
-#### 非結構化內容模板（敘述/觀點/分享類）
-
-```
-作者：@作者名稱
-
-## 要點一：標題
-說明文字...
-
-## 要點二：標題
-說明文字...
-
-標籤：標籤1 標籤2
-```
-
-### D. 上傳圖片到 Obsidian Vault
-
-使用 `saving-to-obsidian` 的 `upload_file.py` 將圖片上傳到 Service：
+### 步驟 1-3：用 redbook 擷取內容
 
 ```bash
-doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upload_file.py \
-  /tmp/xhs_img_1.webp /tmp/xhs_img_2.webp ... \
-  --prefix "assets/xiaohongshu/$(date +%Y-%m-%d)"
+# 取得完整 JSON（URL 必須帶 xsec_token，否則回傳空）
+redbook read --json "https://www.xiaohongshu.com/explore/xxxxx?xsec_token=ABxxx"
+
+# 瀏覽推薦列表（帶 xsec_token 的 URL 在搜尋結果中）
+redbook feed --json
+redbook search --json "關鍵字"
 ```
 
-取得回傳 JSON，提取每個物件的 `path` 欄位備用。
+`redbook read --json` 回傳 JSON 結構：
 
-> 上傳後的圖片會透過 Fast Note Sync 同步到所有裝置的 Obsidian Vault 中。
+| 欄位 | 說明 |
+|------|------|
+| `title` | 標題 |
+| `desc` | 描述文字（主要內容） |
+| `type` | `"normal"` = 圖文，`"video"` = 影片 |
+| `user.nickname` | 作者名稱 |
+| `image_list[]` | 圖片陣列，每張有 `url_default` |
+| `tag_list[]` | 標籤陣列 |
+| `video.media.stream` | 影片串流（`h264` / `h265`），每個含 `master_url`、`width`、`height`、`size` |
+| `interact_info` | 互動數據：`liked_count`、`collected_count`、`comment_count` |
 
-### E. 組裝 Markdown 並存入 Obsidian
+### 步驟 4-6：下載媒體
 
-組裝完整 Markdown（含 YAML frontmatter），圖片使用 Obsidian 原生 `![[path]]` 語法：
+```bash
+# 下載圖片（逐張）
+curl -o /tmp/xhs_img_1.webp "image_list[0].url_default 的值"
+
+# 下載影片（優先選 h265 最高畫質，即 stream_type 115）
+curl -o /tmp/video.mp4 "video.media.stream.h265[最大 size].master_url"
+```
+
+### 步驟 7：取得影片內容理解（type == "video" 時必做）
+
+> **此步驟的目的是讓你（AI agent）理解影片內容。**
+> `analyze_video.py` 的輸出是你的**參考素材**，不是直接貼入筆記的內容。
+> 你應該閱讀分析結果，理解影片在講什麼，然後在步驟 9 中**用自己的話整理重點**寫進文章。
+
+```bash
+doppler run -p api-key -c dev -- uv run \
+  ~/skills/content-collection-obsidian/scripts/analyze_video.py \
+  /tmp/video.mp4
+```
+
+> 自訂提示：加 `--prompt "列出影片中提到的所有工具和產品"`
+> 換模型：加 `--model gemini-3-pro-preview`
+
+### 步驟 8：上傳媒體到 Obsidian
+
+使用 `saving-to-obsidian` 技能的 `upload_file.py`：
+
+```bash
+doppler run -p storage -c dev -- python3 \
+  ~/skills/saving-to-obsidian/scripts/upload_file.py \
+  /tmp/xhs_img_1.webp /tmp/video.mp4 \
+  --prefix "assets/xiaohongshu/$(date +%Y-%m-%d)/<NOTE_ID>"
+```
+
+回傳 JSON 陣列，每個物件含 `path`（Obsidian 內路徑）。
+
+### 步驟 9-10：組裝 Markdown 並存入
+
+**嚴格使用以下模板**，將 `{{ }}` 替換為實際值：
 
 ```markdown
 ---
-title: "標題"
-category: Article
-date: YYYY-MM-DD
-created: "YYYY-MM-DD HH:mm:ss"
-source: "https://xhslink.com/..."
+title: "{{ title }}"
+category: {{ Category }}
+date: {{ YYYY-MM-DD }}
+created: "{{ YYYY-MM-DD HH:mm:ss }}"
+source: "{{ 原始 URL }}"
 type: collection
-author: "原作者名稱"
+author: "{{ user.nickname }}"
+tags: [{{ tag_list 逗號分隔 }}]
 ---
 
-> 摘要：核心要點 1-3 句話
+> {{ 摘要：1-3 句核心要點 }}
 
-作者：@作者名稱
+作者：@{{ user.nickname }}
 
----
+{{ desc 完整描述文字 }}
 
-## 場景/要點標題
+{{ 以下為影片類限定區塊 ——————— }}
+## 影片重點
 
-**做了什麼**：...
+{{ 根據 analyze_video.py 的分析結果，用自己的話整理影片重點。包含主題概述、關鍵要點、重要數據。不要直接貼上原始分析輸出。 }}
 
-**怎麼做的**：
+{{ 以下為影片內嵌 ——————— }}
+![[{{ upload_file.py 回傳的影片 path }}]]
 
-- (1) ...
-- (2) ...
+{{ 以下為圖片區塊 ——————— }}
+## 圖片
 
-（若有原文中的欄位則保留：數據來源、觸發條件、輸出位置、頻率等）
-
-## 圖片原文
-
-![[assets/xiaohongshu/2026-02-28/xhs_img_1.webp]]
-![[assets/xiaohongshu/2026-02-28/xhs_img_2.webp]]
+![[{{ upload_file.py 回傳的圖片 path 1 }}]]
+![[{{ upload_file.py 回傳的圖片 path 2 }}]]
 
 ---
 
-來源：https://xhslink.com/...
+互動：❤️ {{ liked_count }} · ⭐ {{ collected_count }} · 💬 {{ comment_count }}
+來源：{{ 原始 URL }}
 ```
 
-存入命令：
+存入 Obsidian：
 
 ```bash
-doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/save_note.py \
+doppler run -p storage -c dev -- python3 \
+  ~/skills/saving-to-obsidian/scripts/save_note.py \
   --content "組裝好的完整 Markdown" \
-  --path "collections/[Category]/YYYY-MM-DD-標題.md"
+  --path "collections/{{ Category }}/{{ YYYY-MM-DD }}-{{ title }}.md"
 ```
 
-> 將 `[Category]` 替換為實際選擇的分類名稱（如 `Article`、`Tutorial`、`Tweet` 等）。
-
-***
-
-## 一般網站工作流程
-
-### 1. 收到內容
-
-使用者分享 URL 或文字 → 判斷是否需要瀏覽器擷取。
-
-**標題規則**：中文或英文，50 字元以內。
-
-**分類規則**：
-
-* URL 含 twitter.com/x.com → `Tweet`
-* YouTube/Bilibili → `Video`
-* xiaohongshu.com/xhslink.com → `Article`
-* 教學類內容 → `Tutorial`
-* 其他依內容判斷
-
-### 2. 上傳圖片（如有截圖需嵌入）
+## 查詢 Vault 結構
 
 ```bash
-doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/upload_file.py \
-  截圖.png --prefix "collections/$(date +%Y-%m-%d)"
+doppler run -p storage -c dev -- python3 \
+  ~/skills/saving-to-obsidian/scripts/list_vault.py --depth 2
 ```
 
-### 3. 組裝 Markdown 並存入 Obsidian
+## 注意事項
 
-同小紅書流程的步驟 E。
-
-### 4. 回報結果
-
-* ✅ 已收藏、標題、分類
-* 若是瀏覽器擷取，簡短說明內容摘要
-* 如需更改分類告知即可
-
-### 5. 更改分類（可選）
-
-```bash
-doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/update_frontmatter.py \
-  --path "collections/Article/2026-02-18-標題.md" \
-  --updates '{"category": "Tutorial"}'
-```
-
-> 注意：更改分類後，檔案仍留在原目錄，不會自動搬移。
-
-## 首次使用
-
-建立 collections 的自訂索引頁面：
-
-```bash
-doppler run -p storage -c dev -- python3 ~/skills/saving-to-obsidian/scripts/ensure_index.py --folder collections
-```
+* `redbook read` 的 URL **必須帶 `xsec_token`**，否則回傳空 JSON。token 從 `redbook search/feed --json` 結果取得
+* 影片類（`type == "video"`）**必須**用 `analyze_video.py` 產出 AI 摘要
+* 圖片不需視覺讀取 — `redbook read --json` 的 `desc` 已包含所有文字資訊
+* 影片下載優先選 h265 最高畫質（`stream_type 115`），若無則選 h264
+* 所有腳本路徑都在 `~/skills/` 下，用 `doppler run` 注入環境變數
