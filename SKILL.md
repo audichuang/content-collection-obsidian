@@ -23,8 +23,8 @@ description: "當使用者要求收藏、整理外部內容（小紅書貼文、
 - [ ] 6. 【影片限定】下載影片：curl -o /tmp/video.mp4 <video.media.stream 最高畫質 master_url>
 - [ ] 7. 【影片限定】取得影片內容理解：doppler run -p api-key -c dev -- uv run ~/skills/content-collection-obsidian/scripts/analyze_video.py /tmp/video.mp4 → 閱讀輸出，理解影片內容
 - [ ] 8. 上傳所有媒體到 Obsidian Vault（upload_file.py）
-- [ ] 9. 組裝 Markdown（套用下方模板，影片類需根據步驟 7 的理解自行撰寫重點整理）
-- [ ] 10. 存入 Obsidian（save_note.py）
+- [ ] 9. 整理重點：閱讀 desc 原文（影片類再加上步驟 7 的分析），用自己的話撰寫摘要與重點整理
+- [ ] 10. 組裝 Markdown（套用下方模板）→ 存入 Obsidian（save_note.py）
 - [ ] 11. 回報：✅ 標題 / 分類 / 路徑
 ```
 
@@ -92,6 +92,8 @@ curl -o /tmp/video.mp4 "video.media.stream.h265[最大 size].master_url"
 > **此步驟的目的是讓你（AI agent）理解影片內容。**
 > `analyze_video.py` 的輸出是你的**參考素材**，不是直接貼入筆記的內容。
 > 你應該閱讀分析結果，理解影片在講什麼，然後在步驟 9 中**用自己的話整理重點**寫進文章。
+>
+> **圖文類也一樣**：閱讀 `desc` 原文後，在步驟 9 中用自己的話整理重點，不要只搬運原文。
 
 ```bash
 doppler run -p api-key -c dev -- uv run \
@@ -117,7 +119,8 @@ doppler run -p storage -c dev -- python3 \
 
 ### 步驟 9-10：組裝 Markdown 並存入
 
-**嚴格使用以下模板**，將 `{{ }}` 替換為實際值：
+**嚴格使用以下模板**，將 `{{ }}` 替換為實際值。
+**所有類型（圖文 / 影片）都必須有完整的摘要與重點整理。**
 
 ```markdown
 ---
@@ -131,25 +134,29 @@ author: "{{ user.nickname }}"
 tags: [{{ tag_list 逗號分隔 }}]
 ---
 
-> {{ 摘要：1-3 句核心要點 }}
+> {{ 摘要：2-4 句核心要點，概述這篇內容在講什麼、為什麼值得收藏 }}
 
 作者：@{{ user.nickname }}
 
-{{ desc 完整描述文字 }}
+## 重點整理
 
-{{ 以下為影片類限定區塊 ——————— }}
-## 影片重點
+{{ 閱讀原文 desc（影片類再加上 analyze_video.py 的分析結果）後，用自己的話整理內容重點：
+- 主題概述（1-2 句話說明核心主旨）
+- 關鍵要點（條列式，3-7 點）
+- 重要細節、數據或結論（如有）
+不要照搬原文，要用自己的話重新組織。 }}
 
-{{ 根據 analyze_video.py 的分析結果，用自己的話整理影片重點。包含主題概述、關鍵要點、重要數據。不要直接貼上原始分析輸出。 }}
-
-{{ 以下為影片內嵌 ——————— }}
+{{ 以下為影片內嵌（type == "video" 時才加） }}
 ![[{{ upload_file.py 回傳的影片 path }}]]
 
-{{ 以下為圖片區塊 ——————— }}
 ## 圖片
 
 ![[{{ upload_file.py 回傳的圖片 path 1 }}]]
 ![[{{ upload_file.py 回傳的圖片 path 2 }}]]
+
+## 原文參考
+
+{{ desc 完整描述文字，原封不動保留 }}
 
 ---
 
